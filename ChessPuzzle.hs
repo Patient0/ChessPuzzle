@@ -3,64 +3,49 @@ module ChessPuzzle where
 type Square = (Integer, Integer)
 -- A move is a relative offset to a square
 type Move = (Integer, Integer)
--- A Board is a list of unoccupied squares
-type Board = [Square]
+-- SquareList is a list of squares
+type SquareList = [Square]
 
--- A piece has a name, which is used to display a piece,
--- and a move predicate, which tells you if the piece can
--- perform that move.
-type MovePredicate = Move -> Bool
-data Piece = CreatePiece { name :: String, predicate :: MovePredicate}
+data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Show, Eq, Ord)
 
-instance Show Piece where
-    show = name
+canMove :: Piece -> Move -> Bool
+canMove Pawn move = elem move [(1,-1), (1,1)]
+canMove Rook (r,c) = r /= c && (r == 0 || c == 0)
+canMove Knight (r,c) = elem (abs(r), abs(c)) [(1,2), (2,1)]
+canMove Bishop (r,c) = r /= 0 && abs(r) == abs(c)
+canMove Queen move = canMove Bishop move || canMove Rook move
+canMove King move = elem move [(r, c) | r <- [-1,0,1], c <- [-1,0,1], (r,c) /= (0,0)]
 
-instance Eq Piece where
-    x == y = (name x) == (name y)
+-- diff gets the move that relates two squares
+diff :: Square -> Square -> Move
+diff (x2, y2) (x1, y1) = (x1-x2, y1-y2)
 
-finiteMoves :: [Move] -> Move -> Bool
-finiteMoves allowed move = elem move allowed
+-- return if a given piece is allowed to move
+-- from the first square to the second square
+allowedMove :: Piece -> Square -> Square -> Bool
+allowedMove p from to = canMove p (diff from to)
 
-pawn = CreatePiece "P" $ finiteMoves [(1,-1), (1,1)]
-rook = CreatePiece "R" $ \(r,c) -> r /= c && (r == 0 || c == 0)
-knight = CreatePiece "N" $ \(r,c) -> elem (abs(r), abs(c)) [(1,2), (2,1)]
-bishop = CreatePiece "B" $ \(r,c) -> r /= 0 && abs(r) == abs(c)
-queen = CreatePiece "Q" $ \m -> (predicate bishop m) || (predicate rook m)
-king = CreatePiece "K" $ finiteMoves [(r, c) | r <- [-1,0,1], c <- [-1,0,1], (r,c) /= (0,0)]
-
-emptyBoard :: Integer -> Integer -> Board
-emptyBoard rows columns =
+emptySquareList :: Integer -> Integer -> SquareList
+emptySquareList rows columns =
     [(r,c) | r <- [1..rows], c <- [1..columns]]
 
-standardBoard = emptyBoard 8 8
+standardSquareList = emptySquareList 8 8
 
--- relativeMove finds out the move
--- required to get from square
--- x to square y
-relativeMove :: Square -> Square -> Move
-relativeMove (x2, y2) (x1, y1) = (x1-x2, y1-y2)
-
+type Placement = (Piece, Square)
 -- squares takes:
--- a Board, b
--- a Piece, p
--- a starting position, s
--- and returns the parts of the board
--- this piece can move to from
--- position s
-squares :: Board -> Piece -> Square -> Board
-squares b p s =
-    let pred = (predicate p)
-        canMove = \to -> pred (relativeMove s to) in
-        filter canMove b
+-- * a placement
+-- * a list of available squares
+-- returns list of squares that can be moved to
+squares :: Placement -> SquareList -> SquareList
+squares (p,s) = filter (allowedMove p s)
 
-type Placement = (Square, Piece)
 type Solution = [Placement]
-solutions :: Board -> [Piece] -> [Solution]
+solutions :: SquareList -> [Piece] -> [Solution]
 -- empty board has no solutions
 solutions [] _ = []
 -- only one piece left has a solution for each possible
 -- square that the piece could be
-solutions b [p] = [[(s,p) | s <- b]]
+solutions b [p] = [[(p,s) | s <- b]]
 -- continue here...
 solutions b (p:ps) = []
 
