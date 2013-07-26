@@ -56,31 +56,56 @@ type Placements = [Placement]
 -- some things already computed
 data Board = Board Squares Placements
 
-instance Show Board where
-    show (Board squares placements) =
-        let columns = maximum $ map snd squares
-            rows = maximum $ map fst squares
-            buildRow r = [letter (lookup (r,x) placements) | x <- [1..columns]]
-            rowStrings = [buildRow r | r <- [1..rows]]
+liftChar :: Maybe Char -> Char
+liftChar (Just x) = x
+liftChar Nothing = '.'
+
+data DisplayBoard = DisplayBoard { rows, columns :: Integer, placements :: [(Square, Char)] }
+
+instance Show DisplayBoard where
+    show (DisplayBoard rows columns placements) =
+        let buildRow r = [liftChar (lookup (r,c) placements) | c <- [1..columns]]
+            rowStrings = map buildRow [1..rows]
         in
             intercalate "\n" rowStrings
 
--- squares takes:
+maxColumn :: [Square] -> Integer
+maxColumn = maximum . (map snd)
+maxRow :: [Square] -> Integer
+maxRow = maximum . (map fst)
+
+displayBoard :: [Square] -> [(Square, Char)] -> DisplayBoard
+displayBoard squares placements =
+    DisplayBoard (maxRow squares) (maxColumn squares) placements
+
+instance Show Board where
+    show (Board squares placements) =
+        show (displayBoard squares [(k, pieceToChar p) | (k,p) <- placements])
+
+place :: Board -> Piece -> Square -> Board
+place (Board squares placements) p s =
+    (Board squares ((s,p):placements))
+
 -- * a placement
 -- * a list of available squares
 -- returns list of squares that can be moved to
-squares :: Placement -> Squares -> Squares
-squares (s,p) = filter (allowedMove p s)
+nextSquares :: Placement -> Squares -> Squares
+nextSquares (s,p) = filter (allowedMove p s)
 
-type Solution = [Placement]
-solutions :: Squares -> [Piece] -> [Solution]
--- empty board has no solutions
-solutions [] _ = []
--- only one piece left has a solution for each possible
--- square that the piece could be
-solutions b [p] = [[(s,p) | s <- b]]
--- continue here...
-solutions b (p:ps) = []
+sshow :: Squares -> DisplayBoard
+sshow squares =
+    displayBoard squares [(s,'O') | s <- squares]
+
+available :: Board -> Squares
+available (Board squares placements) =
+    let taken = map fst placements
+        exposed = concat [nextSquares p squares | p <- placements]
+    in
+        (squares \\ taken) \\ exposed
+
+type Solution = [Board]
+solutions :: Board -> [Piece] -> [Board]
+solutions = undefined
 
 main :: IO ()
 main = return ()
