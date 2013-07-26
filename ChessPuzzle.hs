@@ -42,12 +42,6 @@ emptySquares :: Integer -> Integer -> Squares
 emptySquares rows columns =
     [(r,c) | r <- [1..rows], c <- [1..columns]]
 
-newBoard :: Integer -> Integer -> Board
-newBoard rows columns =
-    Board (emptySquares rows columns) []
-
-standardBoard = newBoard 8 8
-
 type Placement = (Square, Piece)
 type Placements = [Placement]
 
@@ -55,6 +49,12 @@ type Placements = [Placement]
 -- for efficency we could later try leaving
 -- some things already computed
 data Board = Board Squares Placements
+
+newBoard :: Integer -> Integer -> Board
+newBoard rows columns =
+    Board (emptySquares rows columns) []
+
+standardBoard = newBoard 8 8
 
 liftChar :: Maybe Char -> Char
 liftChar (Just x) = x
@@ -82,9 +82,13 @@ instance Show Board where
     show (Board squares placements) =
         show (displayBoard squares [(k, pieceToChar p) | (k,p) <- placements])
 
-place :: Board -> Piece -> Square -> Board
-place (Board squares placements) p s =
-    (Board squares ((s,p):placements))
+addPiece :: Placement -> Board -> Board
+addPiece p (Board squares ps) =
+    (Board squares (p:ps))
+
+addPieces :: Board -> Placements -> Board
+addPieces b ps =
+    foldr addPiece b ps
 
 -- * a placement
 -- * a list of available squares
@@ -96,22 +100,41 @@ sshow :: Squares -> DisplayBoard
 sshow squares =
     displayBoard squares [(s,'O') | s <- squares]
 
-available :: Board -> Squares
-available (Board squares placements) =
-    let taken = map fst placements
-        exposed = concat [nextSquares p squares | p <- placements]
-    in
-        (squares \\ taken) \\ exposed
+taken :: Board -> Squares
+taken (Board _ ps) =
+    map fst ps
 
-type Solution = [Board]
+-- Get all squares which are under attack
+-- in the given board
+underAttack :: Board -> Squares
+underAttack (Board squares ps) =
+    [s | s <- squares, (t,p) <- ps, allowedMove p s t]
+
+-- Get all of the squares from which this piece can attack
+-- an existing piece on the board
+canAttackFrom :: Board -> Piece -> Squares
+canAttackFrom (Board squares ps) piece =
+    [s | s <- squares, (t,_) <- ps, allowedMove piece s t]
+
+available :: Board -> Squares
+available b@(Board squares _) =
+    (squares \\ (taken b)) \\ (underAttack b)
+
 solutions :: Board -> [Piece] -> [Board]
-solutions = undefined
+solutions b [] = [b]
+solutions b (p:ps) =
+    let options = available b
+        attackFrom = canAttackFrom b p
+        placements = [(s,p) | s <- options \\ attackFrom]
+        nextBoards = [addPiece p b | p <- placements]
+        subs = [solutions nb ps | nb <- nextBoards]
+    in
+        concat subs
+
+-- Next steps
+-- Testing
+-- Duplicates
+-- List monad to cleanup syntax?
 
 main :: IO ()
 main = return ()
--- King :: Piece
--- Queen :: Piece
--- Pawn :: Piece
--- Knight :: Piece
--- Rook :: Piece
-
