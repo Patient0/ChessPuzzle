@@ -132,7 +132,7 @@ nonUniqueSolutions b (p:ps) =
         attackFrom = canAttackFrom b p
         placements = [(s,p) | s <- options \\ attackFrom]
         nextBoards = [addPiece p b | p <- placements]
-        subs = [nonUniqueSolutions nb ps | nb <- nextBoards]
+        subs = [solutions nb ps | nb <- nextBoards]
     in
         concat subs
 
@@ -142,8 +142,7 @@ solutions b ps = nub $ nonUniqueSolutions b ps
 twoRooks = solutions (newBoard 2 2) [Rook, Rook]
  
 -- Next steps
--- Testing
--- Duplicates
+-- Efficiency!
 -- List monad to cleanup syntax?
 
 putLn :: (Show x) => x -> IO ()
