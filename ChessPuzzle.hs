@@ -41,17 +41,14 @@ emptySquares rows columns =
 type Placement = (Square, Piece)
 type Placements = [Placement]
 
--- to start with, a minimalist representation
--- for efficency we could later try leaving
--- some things already computed
 data Board = Board { rows, columns :: Integer, free :: Squares, placements :: Placements} deriving Eq
 
--- We always keep pieces sorted
 addPiece :: Placement -> Board -> Board
-addPiece p (Board r c free ps) =
-    let unoccupied = delete (fst p) free
+addPiece pl@(location,piece) (Board r c free pls) =
+    let allowed = allowedMove piece location
+        newFree = [s | s <- free, s /= location, not (allowed s)]
     in
-        (Board r c unoccupied (sort (p:ps)))
+        Board r c newFree (sort (pl:pls))
 
 newBoard :: Integer -> Integer -> Board
 newBoard rows columns =
@@ -77,28 +74,16 @@ instance Show Board where
     show (Board rows columns free placements) =
         show (GridDisplay rows columns [(k, pieceToChar p) | (k,p) <- placements])
 
--- Get all free which are under attack
--- in the given board
-underAttack :: Board -> Squares
-underAttack (Board _ _ free ps) =
-    [s | s <- free, (t,p) <- ps, allowedMove p s t]
-
--- Get all of the free from which this piece can attack
--- an existing piece on the board
-canAttackFrom :: Board -> Piece -> Squares
-canAttackFrom (Board _ _ free ps) piece =
-    [s | s <- free, (t,_) <- ps, allowedMove piece s t]
-
-available :: Board -> Squares
-available b@(Board _ _ free _) =
-    free \\ (underAttack b)
+-- Can the piece 'p' attack anything on the board
+-- from square 's'?
+canAttackFrom :: Board -> Piece -> Square -> Bool
+canAttackFrom (Board _ _ free ps) p s =
+    any (allowedMove p s) [t | (t,_) <- ps]
 
 solutions :: Board -> [Piece] -> [Board]
 solutions b [] = [b]
 solutions b (p:ps) =
-    let options = available b
-        attackFrom = canAttackFrom b p
-        placements = [(s,p) | s <- options \\ attackFrom]
+    let placements = [(s,p) | s <- free b, not (canAttackFrom b p s)]
         nextBoards = [addPiece p b | p <- placements]
         subs = [solutions nb ps | nb <- nextBoards]
     in
