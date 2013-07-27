@@ -91,6 +91,10 @@ solutions b (p:ps) =
 
 twoRooks = solutions (newBoard 2 2) [Rook, Rook]
 eightQueens = solutions emptyBoard $ replicate 8 Queen
+example1 = solutions (newBoard 3 3) [Rook, King, King]
+example2 = solutions (newBoard 4 4) ((replicate 2 Rook) ++ (replicate 4 Knight))
+test = solutions (newBoard 6 9) [Queen, Rook, Bishop, Knight, King, King]
+
 
 addPieces :: Board -> Placements -> Board
 addPieces b ps =
@@ -106,5 +110,4 @@ showSquares sqs =
     GridDisplay (maxRow sqs) (maxColumn sqs) [(s,'O') | s <- sqs]
  
 -- Next steps
--- Efficiency!
 -- List monad to cleanup syntax?
