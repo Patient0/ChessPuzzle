@@ -4,7 +4,7 @@ import Data.List
 type Square = (Integer, Integer)
 -- A move is a relative offset to a square
 type Move = (Integer, Integer)
--- Squares is a list of squares
+-- Squares is a list of free
 type Squares = [Square]
 
 data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Show, Eq, Ord)
@@ -25,7 +25,7 @@ pieceToChar Bishop = 'B'
 pieceToChar Queen = 'Q'
 pieceToChar King = 'K'
 
--- diff gets the move that relates two squares
+-- diff gets the move that relates two free
 diff :: Square -> Square -> Move
 diff (x2, y2) (x1, y1) = (x1-x2, y1-y2)
 
@@ -44,12 +44,14 @@ type Placements = [Placement]
 -- to start with, a minimalist representation
 -- for efficency we could later try leaving
 -- some things already computed
-data Board = Board { rows, columns :: Integer, squares :: Squares, placements :: Placements} deriving Eq
+data Board = Board { rows, columns :: Integer, free :: Squares, placements :: Placements} deriving Eq
 
 -- We always keep pieces sorted
 addPiece :: Placement -> Board -> Board
-addPiece p (Board r c squares ps) =
-    (Board r c squares (sort (p:ps)))
+addPiece p (Board r c free ps) =
+    let unoccupied = delete (fst p) free
+    in
+        (Board r c unoccupied (sort (p:ps)))
 
 newBoard :: Integer -> Integer -> Board
 newBoard rows columns =
@@ -71,38 +73,25 @@ instance Show GridDisplay where
         in
             intercalate "\n" rowStrings
 
-maxColumn :: [Square] -> Integer
-maxColumn = maximum . (map snd)
-maxRow :: [Square] -> Integer
-maxRow = maximum . (map fst)
-
-displayGrid :: [Square] -> [(Square, Char)] -> GridDisplay
-displayGrid squares placements =
-    GridDisplay (maxRow squares) (maxColumn squares) placements
-
 instance Show Board where
-    show (Board rows columns squares placements) =
+    show (Board rows columns free placements) =
         show (GridDisplay rows columns [(k, pieceToChar p) | (k,p) <- placements])
 
-taken :: Board -> Squares
-taken (Board _ _ _ ps) =
-    map fst ps
-
--- Get all squares which are under attack
+-- Get all free which are under attack
 -- in the given board
 underAttack :: Board -> Squares
-underAttack (Board _ _ squares ps) =
-    [s | s <- squares, (t,p) <- ps, allowedMove p s t]
+underAttack (Board _ _ free ps) =
+    [s | s <- free, (t,p) <- ps, allowedMove p s t]
 
--- Get all of the squares from which this piece can attack
+-- Get all of the free from which this piece can attack
 -- an existing piece on the board
 canAttackFrom :: Board -> Piece -> Squares
-canAttackFrom (Board _ _ squares ps) piece =
-    [s | s <- squares, (t,_) <- ps, allowedMove piece s t]
+canAttackFrom (Board _ _ free ps) piece =
+    [s | s <- free, (t,_) <- ps, allowedMove piece s t]
 
 available :: Board -> Squares
-available b@(Board _ _ squares _) =
-    (squares \\ (taken b)) \\ (underAttack b)
+available b@(Board _ _ free _) =
+    free \\ (underAttack b)
 
 solutions :: Board -> [Piece] -> [Board]
 solutions b [] = [b]
@@ -122,9 +111,14 @@ addPieces :: Board -> Placements -> Board
 addPieces b ps =
     foldr addPiece b ps
 
+maxColumn :: [Square] -> Integer
+maxColumn = maximum . (map snd)
+maxRow :: [Square] -> Integer
+maxRow = maximum . (map fst)
+
 showSquares :: Squares -> GridDisplay
-showSquares squares =
-    displayGrid squares [(s,'O') | s <- squares]
+showSquares sqs =
+    GridDisplay (maxRow sqs) (maxColumn sqs) [(s,'O') | s <- sqs]
  
 -- Next steps
 -- Efficiency!
