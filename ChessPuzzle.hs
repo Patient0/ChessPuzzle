@@ -25,10 +25,6 @@ pieceToChar Bishop = 'B'
 pieceToChar Queen = 'Q'
 pieceToChar King = 'K'
 
-letter :: Maybe Piece -> Char
-letter (Just p) = pieceToChar p
-letter Nothing = '.'
-
 -- diff gets the move that relates two squares
 diff :: Square -> Square -> Move
 diff (x2, y2) (x1, y1) = (x1-x2, y1-y2)
@@ -48,20 +44,16 @@ type Placements = [Placement]
 -- to start with, a minimalist representation
 -- for efficency we could later try leaving
 -- some things already computed
-data Board = Board { squares :: Squares, placements :: Placements}
+data Board = Board { rows, columns :: Integer, squares :: Squares, placements :: Placements} deriving Eq
 
--- Ugly and inefficient but it'll do for now
-instance Eq Board where
-    (Board _ p1) == (Board _ p2) =
-        (sort p1) == (sort p2)
-
-instance Ord Board where
-    (Board _ p1) < (Board _ p2) =
-        (sort p1) < (sort p2)
+-- We always keep pieces sorted
+addPiece :: Placement -> Board -> Board
+addPiece p (Board r c squares ps) =
+    (Board r c squares (sort (p:ps)))
 
 newBoard :: Integer -> Integer -> Board
 newBoard rows columns =
-    Board (emptySquares rows columns) []
+    Board rows columns (emptySquares rows columns) []
 
 emptyBoard = newBoard 8 8
 
@@ -69,12 +61,11 @@ liftChar :: Maybe Char -> Char
 liftChar (Just x) = x
 liftChar Nothing = '.'
 
--- A chess board representationn amenable to
--- display as text
-data DisplayBoard = DisplayBoard Integer Integer [(Square, Char)]
+-- A 2D grid amenable as display as text
+data GridDisplay = GridDisplay Integer Integer [(Square, Char)]
 
-instance Show DisplayBoard where
-    show (DisplayBoard rows columns placements) =
+instance Show GridDisplay where
+    show (GridDisplay rows columns placements) =
         let buildRow r = [liftChar (lookup (r,c) placements) | c <- [1..columns]]
             rowStrings = map buildRow [1..rows]
         in
@@ -85,71 +76,56 @@ maxColumn = maximum . (map snd)
 maxRow :: [Square] -> Integer
 maxRow = maximum . (map fst)
 
-displayBoard :: [Square] -> [(Square, Char)] -> DisplayBoard
-displayBoard squares placements =
-    DisplayBoard (maxRow squares) (maxColumn squares) placements
+displayGrid :: [Square] -> [(Square, Char)] -> GridDisplay
+displayGrid squares placements =
+    GridDisplay (maxRow squares) (maxColumn squares) placements
 
 instance Show Board where
-    show (Board squares placements) =
-        show (displayBoard squares [(k, pieceToChar p) | (k,p) <- placements])
-
-addPiece :: Placement -> Board -> Board
-addPiece p (Board squares ps) =
-    (Board squares (p:ps))
-
-addPieces :: Board -> Placements -> Board
-addPieces b ps =
-    foldr addPiece b ps
-
-sshow :: Squares -> DisplayBoard
-sshow squares =
-    displayBoard squares [(s,'O') | s <- squares]
+    show (Board rows columns squares placements) =
+        show (GridDisplay rows columns [(k, pieceToChar p) | (k,p) <- placements])
 
 taken :: Board -> Squares
-taken (Board _ ps) =
+taken (Board _ _ _ ps) =
     map fst ps
 
 -- Get all squares which are under attack
 -- in the given board
 underAttack :: Board -> Squares
-underAttack (Board squares ps) =
+underAttack (Board _ _ squares ps) =
     [s | s <- squares, (t,p) <- ps, allowedMove p s t]
 
 -- Get all of the squares from which this piece can attack
 -- an existing piece on the board
 canAttackFrom :: Board -> Piece -> Squares
-canAttackFrom (Board squares ps) piece =
+canAttackFrom (Board _ _ squares ps) piece =
     [s | s <- squares, (t,_) <- ps, allowedMove piece s t]
 
 available :: Board -> Squares
-available b@(Board squares _) =
+available b@(Board _ _ squares _) =
     (squares \\ (taken b)) \\ (underAttack b)
 
-nonUniqueSolutions :: Board -> [Piece] -> [Board]
-nonUniqueSolutions b [] = [b]
-nonUniqueSolutions b (p:ps) =
+solutions :: Board -> [Piece] -> [Board]
+solutions b [] = [b]
+solutions b (p:ps) =
     let options = available b
         attackFrom = canAttackFrom b p
         placements = [(s,p) | s <- options \\ attackFrom]
         nextBoards = [addPiece p b | p <- placements]
         subs = [solutions nb ps | nb <- nextBoards]
     in
-        concat subs
-
-solutions :: Board -> [Piece] -> [Board]
-solutions b ps = nub $ nonUniqueSolutions b ps
+        nub $ concat subs
 
 twoRooks = solutions (newBoard 2 2) [Rook, Rook]
+eightQueens = solutions emptyBoard $ replicate 8 Queen
+
+addPieces :: Board -> Placements -> Board
+addPieces b ps =
+    foldr addPiece b ps
+
+showSquares :: Squares -> GridDisplay
+showSquares squares =
+    displayGrid squares [(s,'O') | s <- squares]
  
 -- Next steps
 -- Efficiency!
 -- List monad to cleanup syntax?
-
-putLn :: (Show x) => x -> IO ()
-putLn = putStrLn . show
-
-main :: IO ()
-main =
-    do
-    putLn twoRooks
-    return ()
