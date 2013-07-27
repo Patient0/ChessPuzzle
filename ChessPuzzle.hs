@@ -48,19 +48,30 @@ type Placements = [Placement]
 -- to start with, a minimalist representation
 -- for efficency we could later try leaving
 -- some things already computed
-data Board = Board Squares Placements
+data Board = Board { squares :: Squares, placements :: Placements}
+
+-- Ugly and inefficient but it'll do for now
+instance Eq Board where
+    (Board _ p1) == (Board _ p2) =
+        (sort p1) == (sort p2)
+
+instance Ord Board where
+    (Board _ p1) < (Board _ p2) =
+        (sort p1) < (sort p2)
 
 newBoard :: Integer -> Integer -> Board
 newBoard rows columns =
     Board (emptySquares rows columns) []
 
-standardBoard = newBoard 8 8
+emptyBoard = newBoard 8 8
 
 liftChar :: Maybe Char -> Char
 liftChar (Just x) = x
 liftChar Nothing = '.'
 
-data DisplayBoard = DisplayBoard { rows, columns :: Integer, placements :: [(Square, Char)] }
+-- A chess board representationn amenable to
+-- display as text
+data DisplayBoard = DisplayBoard Integer Integer [(Square, Char)]
 
 instance Show DisplayBoard where
     show (DisplayBoard rows columns placements) =
@@ -90,12 +101,6 @@ addPieces :: Board -> Placements -> Board
 addPieces b ps =
     foldr addPiece b ps
 
--- * a placement
--- * a list of available squares
--- returns list of squares that can be moved to
-nextSquares :: Placement -> Squares -> Squares
-nextSquares (s,p) = filter (allowedMove p s)
-
 sshow :: Squares -> DisplayBoard
 sshow squares =
     displayBoard squares [(s,'O') | s <- squares]
@@ -120,21 +125,32 @@ available :: Board -> Squares
 available b@(Board squares _) =
     (squares \\ (taken b)) \\ (underAttack b)
 
-solutions :: Board -> [Piece] -> [Board]
-solutions b [] = [b]
-solutions b (p:ps) =
+nonUniqueSolutions :: Board -> [Piece] -> [Board]
+nonUniqueSolutions b [] = [b]
+nonUniqueSolutions b (p:ps) =
     let options = available b
         attackFrom = canAttackFrom b p
         placements = [(s,p) | s <- options \\ attackFrom]
         nextBoards = [addPiece p b | p <- placements]
-        subs = [solutions nb ps | nb <- nextBoards]
+        subs = [nonUniqueSolutions nb ps | nb <- nextBoards]
     in
         concat subs
 
+solutions :: Board -> [Piece] -> [Board]
+solutions b ps = nub $ nonUniqueSolutions b ps
+
+twoRooks = solutions (newBoard 2 2) [Rook, Rook]
+ 
 -- Next steps
 -- Testing
 -- Duplicates
 -- List monad to cleanup syntax?
 
+putLn :: (Show x) => x -> IO ()
+putLn = putStrLn . show
+
 main :: IO ()
-main = return ()
+main =
+    do
+    putLn twoRooks
+    return ()
