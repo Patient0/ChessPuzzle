@@ -10,7 +10,7 @@ type Move = (Int, Int)
 -- Squares is a list of free squares
 type Squares = [Square]
 
-data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Read, Show, Eq, Ord)
+data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Read, Show, Eq, Ord, Enum, Bounded)
 
 -- This function defines what moves each piece can make
 canMove :: Piece -> Move -> Bool
@@ -29,6 +29,25 @@ pieceToChar Knight = 'N'
 pieceToChar Bishop = 'B'
 pieceToChar Queen = 'Q'
 pieceToChar King = 'K'
+
+pieces = [Pawn .. King]
+pieceChars = map pieceToChar pieces
+
+charToPiece :: Char -> Maybe Piece
+charToPiece c =
+    let chars = map pieceToChar pieces
+    in
+        lookup c $ zip chars pieces
+
+toPiece :: Char -> Piece
+toPiece c =
+    case (charToPiece c) of
+        Just p -> p
+        Nothing -> error $ "No piece defined for character '" ++ [c] ++ "'"
+
+-- Convert a string like 'QNR' into [Queen, Knight, Rook]
+toPieces :: [Char] -> [Piece]
+toPieces = map toPiece
 
 -- diff gets the move that relates two squares
 diff :: Square -> Square -> Move
@@ -84,13 +103,12 @@ toChar Nothing = '.'
 instance Show Board where
     show (Board rows columns _ placements) =
         let buildRow r = "|" ++ [toChar (lookup (r,c) placements) | c <- [1..columns]] ++ "|\n"
-            header = "+" ++ (replicate columns '-') ++ "+\n"
-            footer = header ++ "\n"
+            bar = "+" ++ (replicate columns '-') ++ "+\n"
             rowStrings = map buildRow [1..rows]
         in
-            header ++
+            bar ++
             (concat rowStrings) ++
-            footer
+            bar
 
 -- The list of squares that are occupied on a board
 occupied :: Board -> Squares

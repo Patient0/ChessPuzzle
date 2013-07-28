@@ -11,16 +11,17 @@ main = do
     rowString <- getLine
     putStrLn "Enter columns"
     columnString <- getLine
-    putStrLn "Enter pieces"
+    putStrLn $ "Enter pieces. Any of ['" ++ pieceChars ++ "']"
     piecesString <- getLine
     let rows = read rowString
         columns = read columnString
-        pieces = read piecesString
-        solutions = chess rows columns pieces in
-        do
-        if (atLeast 100 solutions) then
-            putStrLn $ "Over 100 solutions..."
-        else
-            mapM_ print solutions
-        putStrLn $ "Total solutions: " ++ (show $ length solutions)
+        pieces = toPieces piecesString
+        solutions = chess rows columns pieces
+        in
+            do
+            if (atLeast 100 solutions) then
+                putStrLn $ "Over 100 solutions..."
+            else
+                mapM_ print solutions
+            putStrLn $ "Total solutions: " ++ (show $ length solutions)
     return ()
