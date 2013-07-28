@@ -3,6 +3,8 @@ ChessPuzzle
 
 This is a haskell program that solves "8 Queens" type puzzles.
 
+I wrote it over a weekend as part of a job interview.
+
 It is my first serious effort written in Haskell, so please excuse me for anything that's horrible!
 
 Any comments or suggestions on improving it are very welcome.
