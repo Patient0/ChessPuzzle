@@ -93,3 +93,6 @@ QRNBKK
 Over 100 solutions...
 Total solutions: 20136752
 ```
+
+On my PC at home, this last problem took a little under 4 minutes to solve.
+
