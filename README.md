@@ -74,7 +74,7 @@ KKBBBB
 
 Total solutions: 8
 ```
-If there are two many solutions to print, it instead works like this:
+If there are too many solutions to print, it instead works like this:
 
 ```
 Enter rows
