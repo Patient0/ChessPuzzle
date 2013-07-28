@@ -1,5 +1,8 @@
 module ChessPuzzle where
 import Data.List
+import Control.Monad
+import Data.Map hiding (lookup, foldr, map)
+
 -- Square is a row and a column
 type Square = (Integer, Integer)
 -- A move is a relative offset to a square
@@ -41,14 +44,14 @@ emptySquares rows columns =
 type Placement = (Square, Piece)
 type Placements = [Placement]
 
-data Board = Board { rows, columns :: Integer, free :: Squares, placements :: Placements} deriving Eq
+data Board = Board { rows, columns :: Integer, free :: Squares, placements :: Placements}
 
 addPiece :: Placement -> Board -> Board
 addPiece pl@(location,piece) (Board r c free pls) =
     let allowed = allowedMove piece location
         newFree = [s | s <- free, s /= location, not (allowed s)]
     in
-        Board r c newFree (sort (pl:pls))
+        Board r c newFree (pl:pls)
 
 newBoard :: Integer -> Integer -> Board
 newBoard rows columns =
@@ -80,21 +83,39 @@ canAttackFrom :: Board -> Piece -> Square -> Bool
 canAttackFrom (Board _ _ free ps) p s =
     any (allowedMove p s) [t | (t,_) <- ps]
 
-solutions :: Board -> [Piece] -> [Board]
-solutions b [] = [b]
-solutions b (p:ps) =
-    let placements = [(s,p) | s <- free b, not (canAttackFrom b p s)]
-        nextBoards = [addPiece p b | p <- placements]
-        subs = [solutions nb ps | nb <- nextBoards]
-    in
-        nub $ concat subs
+addBoard :: Board -> Map Placements Board -> Map Placements Board
+addBoard b m = Data.Map.insert (sort $ placements b) b m
 
-twoRooks = solutions (newBoard 2 2) [Rook, Rook]
-eightQueens = solutions emptyBoard $ replicate 8 Queen
-example1 = solutions (newBoard 3 3) [Rook, King, King]
-example2 = solutions (newBoard 4 4) ((replicate 2 Rook) ++ (replicate 4 Knight))
+uniqueBoards :: [Board] -> [Board]
+uniqueBoards bs = elems $ foldr addBoard empty bs
+
+-- We assume pieces is already sorted/grouped
+-- If the last two pieces places were the same,
+-- and the pieces are duplicates, we have the
+-- potential for duplicate boards. So we have to
+-- filter these out.
+ensureUnique :: [Piece] -> [Board] -> [Board]
+ensureUnique (p1:p2:ps) bs | p1 == p2 =
+    uniqueBoards bs
+ensureUnique ps bs = bs
+
+solutions :: Integer -> Integer -> [Piece] -> [Board]
+solutions rows columns [] = [newBoard rows columns]
+solutions rows columns pieces@(p:ps) =
+    let nonUnique = do
+            b <- solutions rows columns ps
+            s <- free b
+            guard (not (canAttackFrom b p s))
+            return $ addPiece (s,p) b
+    in
+        ensureUnique pieces nonUnique
+
+twoRooks = solutions 2 2 $ [Rook, Rook]
+eightQueens = solutions 8 8 (replicate 8 Queen)
+example1 = solutions 3 3 [Rook, King, King]
+example2 = solutions 4 4 ((replicate 2 Rook) ++ (replicate 4 Knight))
 -- length test == 20136752
-test = solutions (newBoard 6 9) [Queen, Rook, Bishop, Knight, King, King]
+test = solutions 6 9 [Queen, Rook, Bishop, Knight, King, King]
 
 addPieces :: Board -> Placements -> Board
 addPieces b ps =

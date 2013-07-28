@@ -4,5 +4,5 @@ putLn = putStrLn . show
 
 main :: IO ()
 main = do
-    putLn (length test)
+    putLn $ length test
     return ()
