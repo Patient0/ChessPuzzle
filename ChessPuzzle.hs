@@ -63,7 +63,7 @@ liftChar :: Maybe Char -> Char
 liftChar (Just x) = x
 liftChar Nothing = '.'
 
--- A 2D grid amenable as display as text
+-- A 2D grid amenable for display as text
 data GridDisplay = GridDisplay Integer Integer [(Square, Char)]
 
 instance Show GridDisplay where
@@ -77,62 +77,59 @@ instance Show Board where
     show (Board rows columns free placements) =
         show (GridDisplay rows columns [(k, pieceToChar p) | (k,p) <- placements])
 
+-- The list of squares that are occupied on a board
+occupied :: Board -> Squares
+occupied b = [s | (s,_) <- placements b]
+
 -- Can the piece 'p' attack anything on the board
 -- from square 's'?
 canAttackFrom :: Board -> Piece -> Square -> Bool
-canAttackFrom (Board _ _ free ps) p s =
-    any (allowedMove p s) [t | (t,_) <- ps]
-
-addBoard :: Board -> Map Placements Board -> Map Placements Board
-addBoard b m = Data.Map.insert (sort $ placements b) b m
+canAttackFrom b p s =
+    any (allowedMove p s) $ occupied b
 
 uniqueBoards :: [Board] -> [Board]
-uniqueBoards bs = elems $ foldr addBoard empty bs
+uniqueBoards bs =
+    let addBoard b = Data.Map.insert (sort $ placements b) b
+    in
+        elems $ foldr addBoard empty bs
 
--- We assume pieces is already sorted/grouped
--- If the last two pieces places were the same,
--- and the pieces are duplicates, we have the
--- potential for duplicate boards. So we have to
--- filter these out.
+-- If the pieces are sorted, we only need to
+-- filter out duplicates if the most recently added piece is
+-- the same as the last one added. This optimization
+-- is important to save us from keeping 20 million
+-- potential chess boards "in memory" just to detect
+-- duplicates.
 ensureUnique :: [Piece] -> [Board] -> [Board]
-ensureUnique (p1:p2:ps) bs | p1 == p2 =
-    uniqueBoards bs
-ensureUnique ps bs = bs
+ensureUnique (p1:p2:ps) | p1 == p2 = uniqueBoards
+ensureUnique _ = id
 
-solutions :: Integer -> Integer -> [Piece] -> [Board]
-solutions rows columns [] = [newBoard rows columns]
-solutions rows columns pieces@(p:ps) =
+solutions :: Board -> [Piece] -> [Board]
+solutions initial [] = [initial]
+solutions initial pieces@(p:ps) =
     let nonUnique = do
-            b <- solutions rows columns ps
-            s <- free b
-            guard (not (canAttackFrom b p s))
-            return $ addPiece (s,p) b
+        b <- solutions initial ps
+        s <- free b
+        guard $ not $ canAttackFrom b p s
+        return $ addPiece (s,p) b
     in
         ensureUnique pieces nonUnique
 
-twoRooks = solutions 2 2 $ [Rook, Rook]
-eightQueens = solutions 8 8 (replicate 8 Queen)
-example1 = solutions 3 3 [Rook, King, King]
-example2 = solutions 4 4 ((replicate 2 Rook) ++ (replicate 4 Knight))
+chess :: Integer -> Integer -> [Piece] -> [Board]
+chess rows columns pieces =
+    solutions (newBoard rows columns) (sort pieces)
+
+twoRooks = chess 2 2 $ [Rook, Rook]
+eightQueens = chess 8 8 (replicate 8 Queen)
+example1 = chess 3 3 [Rook, King, King]
+example2 = chess 4 4 ((replicate 2 Rook) ++ (replicate 4 Knight))
 -- length test == 20136752
-test = solutions 6 9 [Queen, Rook, Bishop, Knight, King, King]
-
-addPieces :: Board -> Placements -> Board
-addPieces b ps =
-    foldr addPiece b ps
-
-maxColumn :: [Square] -> Integer
-maxColumn = maximum . (map snd)
-maxRow :: [Square] -> Integer
-maxRow = maximum . (map fst)
+test = chess 6 9 [Queen, Rook, Bishop, Knight, King, King]
 
 showSquares :: Squares -> GridDisplay
 showSquares sqs =
-    GridDisplay (maxRow sqs) (maxColumn sqs) [(s,'O') | s <- sqs]
+    let max f = maximum . (map f)
+    in
+        GridDisplay (max fst sqs) (max snd sqs) [(s,'O') | s <- sqs]
  
 -- Next steps
--- Filter duplicates more efficiently
---  we only need to worry about the case of two consecutive pieces that
---  are the same. The rest should fall out from there.
--- List monad to cleanup syntax?
 -- IO and polishing.
