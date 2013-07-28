@@ -1,7 +1,8 @@
 ChessPuzzle
 ===========
 
-This is a haskell program that solves "8 Queens" type puzzles.
+This is a haskell program that solves "8 Queens" type puzzles: i.e.
+list all of the possible ways in which some set of chess pieces can be placed on a chess board.
 
 I wrote it over a weekend as part of a job interview.
 
