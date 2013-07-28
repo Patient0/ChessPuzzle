@@ -4,13 +4,13 @@ import Control.Monad
 import Data.Map hiding (lookup, foldr, map)
 
 -- Square is a row and a column
-type Square = (Integer, Integer)
+type Square = (Int, Int)
 -- A move is a relative offset to a square
-type Move = (Integer, Integer)
+type Move = (Int, Int)
 -- Squares is a list of free
 type Squares = [Square]
 
-data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Show, Eq, Ord)
+data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Read, Show, Eq, Ord)
 
 canMove :: Piece -> Move -> Bool
 canMove Pawn move = elem move [(1,-1), (1,1)]
@@ -37,14 +37,14 @@ diff (x2, y2) (x1, y1) = (x1-x2, y1-y2)
 allowedMove :: Piece -> Square -> Square -> Bool
 allowedMove p from to = canMove p (diff from to)
 
-emptySquares :: Integer -> Integer -> Squares
+emptySquares :: Int -> Int -> Squares
 emptySquares rows columns =
     [(r,c) | r <- [1..rows], c <- [1..columns]]
 
 type Placement = (Square, Piece)
 type Placements = [Placement]
 
-data Board = Board { rows, columns :: Integer, free :: Squares, placements :: Placements}
+data Board = Board { rows, columns :: Int, free :: Squares, placements :: Placements}
 
 addPiece :: Placement -> Board -> Board
 addPiece pl@(location,piece) (Board r c free pls) =
@@ -53,7 +53,7 @@ addPiece pl@(location,piece) (Board r c free pls) =
     in
         Board r c newFree (pl:pls)
 
-newBoard :: Integer -> Integer -> Board
+newBoard :: Int -> Int -> Board
 newBoard rows columns =
     Board rows columns (emptySquares rows columns) []
 
@@ -64,14 +64,18 @@ liftChar (Just x) = x
 liftChar Nothing = '.'
 
 -- A 2D grid amenable for display as text
-data GridDisplay = GridDisplay Integer Integer [(Square, Char)]
+data GridDisplay = GridDisplay Int Int [(Square, Char)]
 
 instance Show GridDisplay where
     show (GridDisplay rows columns placements) =
-        let buildRow r = [liftChar (lookup (r,c) placements) | c <- [1..columns]]
+        let buildRow r = "|" ++ [liftChar (lookup (r,c) placements) | c <- [1..columns]] ++ "|\n"
+            header = "+" ++ (replicate columns '-') ++ "+\n"
+            footer = header ++ "\n"
             rowStrings = map buildRow [1..rows]
         in
-            intercalate "\n" rowStrings
+            header ++
+            (concat rowStrings) ++
+            footer
 
 instance Show Board where
     show (Board rows columns free placements) =
@@ -114,7 +118,7 @@ solutions initial pieces@(p:ps) =
     in
         ensureUnique pieces nonUnique
 
-chess :: Integer -> Integer -> [Piece] -> [Board]
+chess :: Int -> Int -> [Piece] -> [Board]
 chess rows columns pieces =
     solutions (newBoard rows columns) (sort pieces)
 
