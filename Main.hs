@@ -16,14 +16,11 @@ main = do
     let rows = read rowString
         columns = read columnString
         pieces = read piecesString
-        solutions = chess rows columns pieces
-        in
-            if (atLeast 100 solutions) then
-                do
-                    putStrLn $ "Over 100 solutions. Computing..."
-                    putStrLn $ "Total solutions: " ++ (show $ length solutions)
-            else
-                do
-                    mapM_ print solutions
-                    putStrLn $ "Total solutions: " ++ (show $ length solutions)
+        solutions = chess rows columns pieces in
+        do
+        if (atLeast 100 solutions) then
+            putStrLn $ "Over 100 solutions..."
+        else
+            mapM_ print solutions
+        putStrLn $ "Total solutions: " ++ (show $ length solutions)
     return ()

@@ -7,11 +7,12 @@ import Data.Map hiding (lookup, foldr, map)
 type Square = (Int, Int)
 -- A move is a relative offset to a square
 type Move = (Int, Int)
--- Squares is a list of free
+-- Squares is a list of free squares
 type Squares = [Square]
 
 data Piece  = Pawn | Rook | Knight | Bishop | Queen | King deriving (Read, Show, Eq, Ord)
 
+-- This function defines what moves each piece can make
 canMove :: Piece -> Move -> Bool
 canMove Pawn move = elem move [(1,-1), (1,1)]
 canMove Rook (r,c) = r /= c && (r == 0 || c == 0)
@@ -20,6 +21,7 @@ canMove Bishop (r,c) = r /= 0 && abs(r) == abs(c)
 canMove Queen move = canMove Bishop move || canMove Rook move
 canMove King move = elem move [(r, c) | r <- [-1,0,1], c <- [-1,0,1], (r,c) /= (0,0)]
 
+-- Symbolic representation of each piece, for board display
 pieceToChar :: Piece -> Char
 pieceToChar Pawn = 'P'
 pieceToChar Rook = 'R'
@@ -28,7 +30,7 @@ pieceToChar Bishop = 'B'
 pieceToChar Queen = 'Q'
 pieceToChar King = 'K'
 
--- diff gets the move that relates two free
+-- diff gets the move that relates two squares
 diff :: Square -> Square -> Move
 diff (x2, y2) (x1, y1) = (x1-x2, y1-y2)
 
@@ -41,11 +43,25 @@ emptySquares :: Int -> Int -> Squares
 emptySquares rows columns =
     [(r,c) | r <- [1..rows], c <- [1..columns]]
 
+-- A placement indicates that a certain piece is on a
+-- particular square on the board
 type Placement = (Square, Piece)
 type Placements = [Placement]
 
-data Board = Board { rows, columns :: Int, free :: Squares, placements :: Placements}
+-- 'free' is redundant in that it can be calculated from scratch
+-- from the placements and dimensions. However, for efficiency
+-- we keep this along with the board to save recomputing.
+data Board = Board {
+    rows, columns :: Int, -- The dimensions of the board
+    free :: Squares, -- squares which are not in control of any pieces
+    placements :: Placements -- the placements of each piece on the board
+    }
 
+-- Return the board that results from adding a
+-- piece to the board at a given position.
+-- This means:
+--  adding the new placement to the list of placements
+--  removing the squares that the new piece controls from 'free'
 addPiece :: Placement -> Board -> Board
 addPiece pl@(location,piece) (Board r c free pls) =
     let allowed = allowedMove piece location
@@ -53,22 +69,21 @@ addPiece pl@(location,piece) (Board r c free pls) =
     in
         Board r c newFree (pl:pls)
 
-newBoard :: Int -> Int -> Board
-newBoard rows columns =
+-- Create a new board with no pieces
+emptyBoard :: Int -> Int -> Board
+emptyBoard rows columns =
     Board rows columns (emptySquares rows columns) []
 
-emptyBoard = newBoard 8 8
+-- A standard chess board
+standardBoard = emptyBoard 8 8
 
-liftChar :: Maybe Char -> Char
-liftChar (Just x) = x
-liftChar Nothing = '.'
+toChar :: Maybe Piece -> Char
+toChar (Just p) = pieceToChar p
+toChar Nothing = '.'
 
--- A 2D grid amenable for display as text
-data GridDisplay = GridDisplay Int Int [(Square, Char)]
-
-instance Show GridDisplay where
-    show (GridDisplay rows columns placements) =
-        let buildRow r = "|" ++ [liftChar (lookup (r,c) placements) | c <- [1..columns]] ++ "|\n"
+instance Show Board where
+    show (Board rows columns _ placements) =
+        let buildRow r = "|" ++ [toChar (lookup (r,c) placements) | c <- [1..columns]] ++ "|\n"
             header = "+" ++ (replicate columns '-') ++ "+\n"
             footer = header ++ "\n"
             rowStrings = map buildRow [1..rows]
@@ -76,10 +91,6 @@ instance Show GridDisplay where
             header ++
             (concat rowStrings) ++
             footer
-
-instance Show Board where
-    show (Board rows columns free placements) =
-        show (GridDisplay rows columns [(k, pieceToChar p) | (k,p) <- placements])
 
 -- The list of squares that are occupied on a board
 occupied :: Board -> Squares
@@ -120,7 +131,7 @@ solutions initial pieces@(p:ps) =
 
 chess :: Int -> Int -> [Piece] -> [Board]
 chess rows columns pieces =
-    solutions (newBoard rows columns) (sort pieces)
+    solutions (emptyBoard rows columns) (sort pieces)
 
 twoRooks = chess 2 2 $ [Rook, Rook]
 eightQueens = chess 8 8 (replicate 8 Queen)
@@ -128,12 +139,3 @@ example1 = chess 3 3 [Rook, King, King]
 example2 = chess 4 4 ((replicate 2 Rook) ++ (replicate 4 Knight))
 -- length test == 20136752
 test = chess 6 9 [Queen, Rook, Bishop, Knight, King, King]
-
-showSquares :: Squares -> GridDisplay
-showSquares sqs =
-    let max f = maximum . (map f)
-    in
-        GridDisplay (max fst sqs) (max snd sqs) [(s,'O') | s <- sqs]
- 
--- Next steps
--- IO and polishing.
