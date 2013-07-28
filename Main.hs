@@ -1,5 +1,10 @@
 import ChessPuzzle
 
+atLeast :: Int -> [a] -> Bool
+atLeast 0 _      = True
+atLeast _ []     = False
+atLeast n (_:ys) = atLeast (n-1) ys
+
 main :: IO ()
 main = do
     putStrLn "Enter rows"
@@ -13,5 +18,12 @@ main = do
         pieces = read piecesString
         solutions = chess rows columns pieces
         in
-            mapM_ print solutions
+            if (atLeast 100 solutions) then
+                do
+                    putStrLn $ "Over 100 solutions. Computing..."
+                    putStrLn $ "Total solutions: " ++ (show $ length solutions)
+            else
+                do
+                    mapM_ print solutions
+                    putStrLn $ "Total solutions: " ++ (show $ length solutions)
     return ()
