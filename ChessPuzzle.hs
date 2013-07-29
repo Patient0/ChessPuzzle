@@ -58,10 +58,6 @@ diff (x2, y2) (x1, y1) = (x1-x2, y1-y2)
 allowedMove :: Piece -> Square -> Square -> Bool
 allowedMove p from to = canMove p (diff from to)
 
-emptySquares :: Int -> Int -> Squares
-emptySquares rows columns =
-    [(r,c) | r <- [1..rows], c <- [1..columns]]
-
 -- A placement indicates that a certain piece is on a
 -- particular square on the board
 type Placement = (Square, Piece)
@@ -87,6 +83,11 @@ addPiece pl@(location,piece) (Board r c free pls) =
         newFree = [s | s <- free, s /= location, not (allowed s)]
     in
         Board r c newFree (pl:pls)
+
+
+emptySquares :: Int -> Int -> Squares
+emptySquares rows columns =
+    [(r,c) | r <- [1..rows], c <- [1..columns]]
 
 -- Create a new board with no pieces
 emptyBoard :: Int -> Int -> Board
@@ -120,6 +121,8 @@ canAttackFrom :: Board -> Piece -> Square -> Bool
 canAttackFrom b p s =
     any (allowedMove p s) $ occupied b
 
+-- Take a list of boards and filter out the ones with
+-- duplicate placements
 uniqueBoards :: [Board] -> [Board]
 uniqueBoards bs =
     let addBoard b = Data.Map.insert (sort $ placements b) b
@@ -136,6 +139,10 @@ ensureUnique :: [Piece] -> [Board] -> [Board]
 ensureUnique (p1:p2:ps) | p1 == p2 = uniqueBoards
 ensureUnique _ = id
 
+-- The main part of the algorithm:
+--  For each of the solutions placing N-1 pieces,
+--   work out all of the ways in which the next piece can be added.
+--  Remove any duplicates.
 solutions :: Board -> [Piece] -> [Board]
 solutions initial [] = [initial]
 solutions initial pieces@(p:ps) =
@@ -147,13 +154,19 @@ solutions initial pieces@(p:ps) =
     in
         ensureUnique pieces nonUnique
 
+-- Main entry point to this module.
+-- Ensures that pieces is sorted (required for
+-- 'unique' optimization).
 chess :: Int -> Int -> [Piece] -> [Board]
 chess rows columns pieces =
     solutions (emptyBoard rows columns) (sort pieces)
 
+-- A very simple test case
 twoRooks = chess 2 2 $ [Rook, Rook]
-eightQueens = chess 8 8 (replicate 8 Queen)
+-- The example problems in the document
 example1 = chess 3 3 [Rook, King, King]
 example2 = chess 4 4 ((replicate 2 Rook) ++ (replicate 4 Knight))
 -- length test == 20136752
 test = chess 6 9 [Queen, Rook, Bishop, Knight, King, King]
+-- The 'classic' problem of 8 queens on a standard chess board
+eightQueens = chess 8 8 (replicate 8 Queen)
